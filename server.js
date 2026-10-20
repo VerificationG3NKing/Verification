@@ -41,7 +41,7 @@ app.get('/api/callback', async (req, res) => {
       client_secret: process.env.CLIENT_SECRET,
       grant_type: 'authorization_code',
       code: code,
-      redirect_uri: "https://verificationg3nhydrabot.onrender.com/api/callback", // <-- Pus direct aici
+      redirect_uri: "https://verificationg3nhydrabot.onrender.com/api/callback",
     });
 
     const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', tokenParams, {
@@ -71,6 +71,7 @@ app.get('/api/callback', async (req, res) => {
     res.send('<h2>✅ Verificare reusita! Poti inchide aceasta fereastra.</h2>');
   } catch (error) {
     console.error('Eroare OAuth2:', error.response?.data || error.message);
+    res.status(500).send('❌ Eroare la autorizare.');
   }
 });
 
@@ -90,16 +91,20 @@ app.post('/api/pull', async (req, res) => {
 
   res.write(JSON.stringify({ status: 'started', total: users.length }) + '\n');
 
+  // Folosim DISCORD_BOT_TOKEN (sau BOT_TOKEN, în funcție de cum l-ai pus pe Render)
+  const botToken = process.env.DISCORD_BOT_TOKEN || process.env.BOT_TOKEN;
+
   for (const user of users) {
     try {
       await axios.put(
         `https://discord.com/api/v10/guilds/${targetGuildId}/members/${user.discordId}`,
         { access_token: user.accessToken },
-        { headers: { Authorization: `Bot ${process.env.BOT_TOKEN}`, 'Content-Type': 'application/json' } }
+        { headers: { Authorization: `Bot ${botToken}`, 'Content-Type': 'application/json' } }
       );
       success++;
     } catch (err) {
       failed++;
+      console.error(`Eroare pull pentru user ${user.discordId}:`, err.response?.data || err.message);
     }
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
