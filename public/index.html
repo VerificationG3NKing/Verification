@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <title>Discord Verifier Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #1e1f22; color: #f2f3f5; padding: 30px; }
+    .card { background: #2b2d31; padding: 20px; border-radius: 8px; max-width: 500px; margin: 0 auto 20px auto; }
+    h1, h2 { color: #5865f2; }
+    input, button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 4px; border: none; box-sizing: border-box; }
+    input { background: #1e1f22; color: #fff; }
+    button { background: #5865f2; color: white; font-weight: bold; cursor: pointer; }
+    button:hover { background: #4752c4; }
+    .result { background: #111214; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-family: monospace; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>🛡️ Dashboard Verificare</h1>
+    <p>Statistici și Panou de Control Pull</p>
+    
+    <label>Cheie Admin Secreta:</label>
+    <input type="password" id="adminKey" placeholder="Introdu cheia din .env">
+    
+    <button onclick="checkStats()">Verifică Membri Înregistrați</button>
+    <div id="statsResult">Membri verificați: -</div>
+  </div>
+
+  <div class="card">
+    <h2>🚀 Pull Members pe Server Secundar</h2>
+    <label>ID Server Secundar (Guild ID):</label>
+    <input type="text" id="guildId" placeholder="ex: 123456789012345678">
+    
+    <button onclick="startPull()">Pornește Procesul de Pull</button>
+    <div id="pullLogs" class="result">Așteptare comandă...</div>
+  </div>
+
+  <script>
+    async function checkStats() {
+      const key = document.getElementById('adminKey').value;
+      const res = await fetch(`/api/stats?key=${encodeURIComponent(key)}`);
+      const data = await res.json();
+      if(data.totalVerified !== undefined) {
+        document.getElementById('statsResult').innerText = `Membri verificați în baza de date: ${data.totalVerified}`;
+      } else {
+        document.getElementById('statsResult').innerText = `Eroare: ${data.error || 'Autentificare eșuată'}`;
+      }
+    }
+
+    async function startPull() {
+      const adminKey = document.getElementById('adminKey').value;
+      const targetGuildId = document.getElementById('guildId').value;
+      const logs = document.getElementById('pullLogs');
+
+      logs.innerText = "Se inițiază procesul...";
+
+      const res = await fetch('/api/pull', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminKey, targetGuildId })
+      });
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      logs.innerText = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        logs.innerText += decoder.decode(value);
+      }
+    }
+  </script>
+
+</body>
+</html>
