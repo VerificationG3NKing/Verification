@@ -25,7 +25,7 @@ const User = mongoose.model('User', UserSchema);
 
 // Ruta de verificare
 app.get('/verify', (req, res) => {
-  const redirectUri = process.env.REDIRECT_URI;
+  const redirectUri = "https://verificationg3nhydrabot.onrender.com/api/callback";
   const authorizeUrl = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=identify%20guilds.join`;
   res.redirect(authorizeUrl);
 });
