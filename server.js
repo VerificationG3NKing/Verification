@@ -26,8 +26,8 @@ const User = mongoose.model('User', UserSchema);
 
 // 1. Redirect catre Discord OAuth2
 app.get('/verify', (req, res) => {
-  const redirectUri = encodeURIComponent(process.env.REDIRECT_URI);
-  const authorizeUrl = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&redirect_uri=${redirectUri}&scope=identify%20guilds.join`;
+  const redirectUri = process.env.REDIRECT_URI;
+  const authorizeUrl = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=identify%20guilds.join`;
   res.redirect(authorizeUrl);
 });
 
