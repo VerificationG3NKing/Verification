@@ -8,12 +8,11 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Connect to MongoDB
+// Conectare MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ Conectat la MongoDB cu succes!'))
   .catch(err => console.error('❌ Eroare conectare MongoDB:', err));
 
-// User Schema
 const UserSchema = new mongoose.Schema({
   discordId: { type: String, unique: true },
   username: String,
@@ -24,14 +23,14 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', UserSchema);
 
-// 1. Redirect catre Discord OAuth2
+// Ruta de verificare
 app.get('/verify', (req, res) => {
   const redirectUri = process.env.REDIRECT_URI;
   const authorizeUrl = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=identify%20guilds.join`;
   res.redirect(authorizeUrl);
 });
 
-// 2. Callback OAuth2 de la Discord
+// Callback-ul de la Discord
 app.get('/api/callback', async (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).send('Cod de autorizare lipsă.');
@@ -61,7 +60,7 @@ app.get('/api/callback', async (req, res) => {
       { discordId: userData.id },
       {
         discordId: userData.id,
-        username: `${userData.username}#${userData.discriminator || '0'}`,
+        username: `${userData.username}`,
         accessToken: access_token,
         refreshToken: refresh_token,
         verifiedAt: new Date()
@@ -69,39 +68,26 @@ app.get('/api/callback', async (req, res) => {
       { upsert: true, new: true }
     );
 
-    res.send('<h2>✅ Verificare reusita! Poti inchide aceasta fereastra si sa te intorci pe Discord.</h2>');
+    res.send('<h2>✅ Verificare reusita! Poti inchide aceasta fereastra.</h2>');
   } catch (error) {
     console.error('Eroare OAuth2:', error.response?.data || error.message);
     res.status(500).send('❌ Eroare la autorizare.');
   }
 });
 
-// 3. Statistica membri verificati
 app.get('/api/stats', async (req, res) => {
-  const adminKey = req.query.key;
-  if (adminKey !== process.env.ADMIN_KEY) {
-    return res.status(403).json({ error: 'Cheie Admin invalida.' });
-  }
-
+  if (req.query.key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Cheie invalida.' });
   const count = await User.countDocuments();
   res.json({ totalVerified: count });
 });
 
-// 4. Procesul de PULL Membri pe Server Secundar
 app.post('/api/pull', async (req, res) => {
   const { adminKey, targetGuildId } = req.body;
-
-  if (adminKey !== process.env.ADMIN_KEY) {
-    return res.status(403).json({ error: 'Cheie Admin invalida.' });
-  }
-
-  if (!targetGuildId) {
-    return res.status(400).json({ error: 'Specifică ID-ul serverului secundar (targetGuildId).' });
-  }
+  if (adminKey !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Cheie invalida.' });
+  if (!targetGuildId) return res.status(400).json({ error: 'Specifică ID-ul serverului.' });
 
   const users = await User.find();
-  let successCount = 0;
-  let failCount = 0;
+  let success = 0, failed = 0;
 
   res.write(JSON.stringify({ status: 'started', total: users.length }) + '\n');
 
@@ -110,26 +96,18 @@ app.post('/api/pull', async (req, res) => {
       await axios.put(
         `https://discord.com/api/v10/guilds/${targetGuildId}/members/${user.discordId}`,
         { access_token: user.accessToken },
-        {
-          headers: {
-            Authorization: `Bot ${process.env.BOT_TOKEN}`,
-            'Content-Type': 'application/json'
-          }
-        }
+        { headers: { Authorization: `Bot ${process.env.BOT_TOKEN}`, 'Content-Type': 'application/json' } }
       );
-      successCount++;
+      success++;
     } catch (err) {
-      failCount++;
+      failed++;
     }
-    // Delay de 1 secunda pentru a evita limitele de viteza Discord API
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
 
-  res.write(JSON.stringify({ status: 'completed', success: successCount, failed: failCount }) + '\n');
+  res.write(JSON.stringify({ status: 'completed', success, failed }) + '\n');
   res.end();
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Serverul rulează pe http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Serverul rulează pe portul ${PORT}`));
