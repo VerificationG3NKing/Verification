@@ -71,7 +71,6 @@ app.get('/api/callback', async (req, res) => {
     res.send('<h2>✅ Verificare reusita! Poti inchide aceasta fereastra.</h2>');
   } catch (error) {
     console.error('Eroare OAuth2:', error.response?.data || error.message);
-    res.status(500).send('❌ Eroare la autorizare.');
   }
 });
 
