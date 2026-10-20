@@ -41,7 +41,7 @@ app.get('/api/callback', async (req, res) => {
       client_secret: process.env.CLIENT_SECRET,
       grant_type: 'authorization_code',
       code: code,
-      redirect_uri: process.env.REDIRECT_URI,
+      redirect_uri: "https://verificationg3nhydrabot.onrender.com/api/callback", // <-- Pus direct aici
     });
 
     const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', tokenParams, {
